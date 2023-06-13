@@ -15,12 +15,29 @@ import requests
 from async_generator import async_generator, yield_
 import os
 import boto3
+import pwd
 from tornado import gen
 from concurrent.futures import ThreadPoolExecutor
 from traitlets import Unicode
 from aws_pcluster_helpers.models.sinfo import SInfoTable, SinfoRow
+from cdsdashboards.hubextension.spawners.variablemixin import VariableMixin, MetaVariableMixin
 
 class PClusterSlurmSpawner(batchspawner.SlurmSpawner):
+    #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+    async def start(self):
+        # Get user options from form data
+        user_options = self.user_options
+        selected_profile = user_options.get('profile')
+
+        if selected_profile and 'profile-option-' + selected_profile + '-project' in user_options:
+            # Extract selected project
+            selected_project = user_options['profile-option-' + selected_profile + '-project']
+
+            # Save project name
+            self.save_project_name(selected_project)
+        # Call the original start method
+        return await super().start()
+    #-------------------------------------------X Project list drop-down menu X---------------------------------------------
     # This is tied to the dict returned by the submission_data function
     batch_script = Unicode(
         """#!/bin/bash
@@ -91,6 +108,7 @@ echo "jupyterhub-singleuser ended gracefully"
         font-size: 16px;
     }
 </style>
+
 <div class='form-group' id='pclusterslurmspawner-profiles-list'>
     {% for profile in profile_list %}
     <div class='profile'>
@@ -108,12 +126,12 @@ echo "jupyterhub-singleuser ended gracefully"
                 <div class='option'>
                     <label for='profile-option-{{ profile.slug }}-{{ option_key }}'>{{ option_value.display_name }}</label>
                     <div class='value'>
-                    <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
-                        {%- for choice_key, choice_value in option_value.choices.items() %}
-                        <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$")|safe }}</option>
-                        {%- endfor %}
-                    </select>
-                </div>
+                        <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
+                            {%- for choice_key, choice_value in option_value.choices.items() %}
+                            <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                            {%- endfor %}
+                        </select>
+                    </div>
                 </div>
                 {%- endfor %}
             </div>
@@ -122,6 +140,7 @@ echo "jupyterhub-singleuser ended gracefully"
     </div>
     {% endfor %}
 </div>
+
     """,
     config=True,
     help="""
@@ -348,13 +367,22 @@ echo "jupyterhub-singleuser ended gracefully"
         max_cpu_length = max(len(cpu) for cpu in cpus)
         max_mem_length = max(len(mem) for mem in mems)
         instance_prices = self.get_instance_prices(list(set(instance_types)))
-
+        #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+        # Retrieve all projects listed from the file if it exists
+        file_path = '/home/ubuntu/projects_list/projects_list.txt'
+        if os.path.exists(file_path):
+            projects = self.read_projects_from_file(file_path)
+        else:
+            projects = ["No file"]
+        #-------------------------------------------X Project list drop-down menu X---------------------------------------------
         profiles = [
             {
                 "display_name": f"CPU",
                 "slug": "cpu",
                 "ami_name": "Deep Learning",
                 "profile_options": {
+                    # Display all projects list from the file in the drop-down menu
+                    "project": {"display_name": "Project", "choices": {}},
                     "instance_types": {"display_name": "Instance Types", "choices": {}},
                 },
             },
@@ -363,6 +391,8 @@ echo "jupyterhub-singleuser ended gracefully"
                 "slug": "gpu",
                 "ami_name": "Deep Learning",
                 "profile_options": {
+                    # Display all projects list from the file in the drop-down menu
+                    "project": {"display_name": "Project", "choices": {}},
                     "instance_types": {"display_name": "Instance Types", "choices": {}},
                 },
             },
@@ -392,9 +422,27 @@ echo "jupyterhub-singleuser ended gracefully"
                 profile_choices[sinfo_name]['display_name'] += ",  N/A"
         if not profiles[1]["profile_options"]["instance_types"]["choices"]:
             profiles.pop()
-        # Sort the profiles by the display name
+        #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+        for profile in profiles:
+            if "profile_options" in profile and "project" in profile["profile_options"]:
+                profile["profile_options"]["project"]["choices"] = {project: {"display_name": project} for project in projects}
+        #-------------------------------------------x Project list drop-down menu x---------------------------------------------
         return profiles
-
+    #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+    @staticmethod
+    def read_projects_from_file(file_path):
+        with open(file_path, 'r') as file:
+            return [line.strip() for line in file if line.strip()]
+        
+    def save_project_name(self, project_name):
+    # Get the home directory of the user
+        homedir = pwd.getpwnam(self.user.name).pw_dir
+        # Construct the full path to the file
+        file_path = os.path.join(homedir, 'chosen_project.txt')
+        # Write the project name to the file
+        with open(file_path, 'w') as file:
+            file.write(project_name.strip())
+    #-------------------------------------------X Project list drop-down menu X---------------------------------------------
     @property
     def sinfo(self):
         sinfo = SInfoTable()
@@ -487,10 +535,21 @@ echo "jupyterhub-singleuser ended gracefully"
         return rtemplate.render(**defaults)
 
     def options_from_form(self, formdata):
+        #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+        project_name = formdata.get("projectName", [""])[0]
+        self.save_project_name(project_name)
+        #-------------------------------------------X Project list drop-down menu X---------------------------------------------
         """
         The return from this function is what is read into teh SLURM script
         """
         submission_data = {}
+        # self.log.debug('--------------------------------')
+        # self.log.debug('FORM DATA')
+        # self.log.debug(formdata)
+        # self.log.debug('--------------------------------')
+        # self.log.debug('USER OPTIONS')
+        # self.log.debug(self.user_options)
+        # self.log.debug('-------------------------------')
         queue = formdata["profile"][0]
         sinfo_name = formdata[f"profile-option-{queue}-instance_types"][0]
         records = self.sinfo.dataframe.loc[
@@ -577,3 +636,27 @@ echo "jupyterhub-singleuser ended gracefully"
 def get_ec2_address(address_type="local-ipv4") -> str:
     response = requests.get(f"http://169.254.169.254/latest/meta-data/{address_type}")
     return response.content.decode("utf-8")
+
+#-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+class VariableSlurmSpawner(PClusterSlurmSpawner, VariableMixin, metaclass=MetaVariableMixin):
+    async def options_from_form(self, formdata):
+        # Call parent class method to get user options from the form data
+        user_options = super().options_from_form(formdata)
+
+        # Retrieve 'profile' from form data, default to empty string if not found
+        profile = formdata.get('profile', [''])[0]
+
+        # Construct a dictionary of profile options from form data
+        # Keys are form data entries that start with 'profile-option-', values are the corresponding form data values
+        profile_options = {k: v[0] for k, v in formdata.items() if k.startswith('profile-option-')}
+
+        # Store profile value in user options
+        user_options['profile'] = profile
+
+        # Iterate through profile options and add each to user options
+        for key, value in profile_options.items():
+            user_options[key] = value
+
+        # Return user options that now includes profile and profile options
+        return user_options
+#-------------------------------------------X Project list drop-down menu X---------------------------------------------
