@@ -2,6 +2,7 @@
 import pwd
 import os
 import time
+import re
 from datetime import datetime
 from typing import List
 import json
@@ -12,6 +13,7 @@ from slugify import slugify
 # pcluster_spawner_template_paths = os.path.join(os.path.dirname(__file__), 'templates')
 from typing import Any, List
 import requests
+import asyncio
 from async_generator import async_generator, yield_
 import os
 import boto3
@@ -425,9 +427,14 @@ echo "jupyterhub-singleuser ended gracefully"
         #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
         for profile in profiles:
             if "profile_options" in profile and "project" in profile["profile_options"]:
-                profile["profile_options"]["project"]["choices"] = {project: {"display_name": project} for project in projects}
+                profile["profile_options"]["project"]["choices"] = {
+                    "----": {"display_name": "---- Please select a project ----"},  # Modified line
+                    **{project: {"display_name": project} for project in projects}
+                }
+
         #-------------------------------------------x Project list drop-down menu x---------------------------------------------
         return profiles
+
     #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
     @staticmethod
     def read_projects_from_file(file_path):
