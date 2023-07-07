@@ -1,0 +1,240 @@
+{% macro modal(title, btn_label=None, btn_class="btn-primary") %}
+{% set key = title.replace(' ', '-').lower() %}
+{% set btn_label = btn_label or title %}
+<div class="modal fade" id="{{key}}-dialog" tabindex="-1" role="dialog" aria-labelledby="{{key}}-label" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <h4 class="modal-title" id="{{key}}-label">{{title}}</h4>
+      </div>
+      <div class="modal-body">
+        {{ caller() }}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn {{btn_class}}" data-dismiss="modal">{{btn_label}}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}JupyterHub{% endblock %}</title>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block stylesheet %}
+    <style>
+        body {
+            overflow-x: hidden;
+            text-align: center;
+        }
+        .container-fluid {
+            margin-left: auto;
+            margin-right: auto;
+            width: 50%;
+        }
+        html, body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .main-content {
+            flex: 1 0 auto;
+            padding-top: 20px; /* Add desired spacing between navbar and main content */
+        }
+
+        .my-header {
+            margin-bottom: 2px; /* adjust as needed */
+        }
+
+        .my-label {
+            margin-top: 2px; /* adjust as needed */
+        }
+
+    </style>
+    {% endblock %}
+    {% block favicon %}
+    <link rel="icon" href="{{ static_url("favicon.ico") }}" type="image/x-icon">
+    {% endblock %}
+    {% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="{{static_url("components/requirejs/require.js") }}" type="text/javascript" charset="utf-8"></script>
+    <script src="{{static_url("components/jquery/dist/jquery.min.js") }}" type="text/javascript" charset="utf-8"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% endblock %}
+    <script>
+      require.config({
+          {% if version_hash %}
+          urlArgs: "v={{version_hash}}",
+          {% endif %}
+          baseUrl: '{{static_url("js", include_version=False)}}',
+          paths: {
+            components: '../components',
+            jquery: '../components/jquery/dist/jquery.min',
+            bootstrap: '../components/bootstrap/dist/js/bootstrap.min',
+            moment: "../components/moment/moment",
+          },
+          shim: {
+            bootstrap: {
+              deps: ["jquery"],
+              exports: "bootstrap"
+            },
+          }
+      });
+    </script>
+    <script type="text/javascript">
+      window.jhdata = {
+        base_url: "{{base_url}}",
+        prefix: "{{prefix}}",
+        {% if user %}
+        user: "{{user.json_escaped_name}}",
+        {% endif %}
+        {% if admin_access %}
+        admin_access: true,
+        {% else %}
+        admin_access: false,
+        {% endif %}
+        {% if not no_spawner_check and user and user.spawner.options_form %}
+        options_form: true,
+        {% else %}
+        options_form: false,
+        {% endif %}
+      }
+    </script>
+    <script type="text/javascript">
+      // We need to wait for the whole page to load, including all HTML and scripts,
+      // before we can safely manipulate the page's elements.
+      window.addEventListener('DOMContentLoaded', (event) => {
+        // We use `document.querySelectorAll` to get a list of all the `<a>` elements on the page
+        // that have `href="/hub/dashboards"` attribute.
+        var elements = document.querySelectorAll('a[href="/hub/dashboards"]');
+
+        // We go through the list of elements we got.
+        elements.forEach(function(element) {
+          // Check the class of the parent element <li>
+          var parentClass = element.parentNode.className;
+
+          // If the inner text of the `<a>` element is "Dashboards", and its parent `<li>`
+          // doesn't have the class "nav-item", we remove the `<li>` element that contains this `<a>` element.
+          // We use `element.parentNode` to access the parent `<li>` element.
+          if(element.innerHTML === "Dashboards" && parentClass !== "nav-item") {
+            element.parentNode.remove();
+          }
+        });
+      });
+    </script>
+    {% block meta %}
+    {% endblock %}
+</head>
+<body>
+<noscript>
+  <div id='noscript'>
+    JupyterHub requires JavaScript.<br>
+    Please enable it to proceed.
+  </div>
+</noscript>
+{% block nav_bar %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <!-- Collapsible Navbar -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Left Side Items -->
+        <div class="collapse navbar-collapse justify-content-start" id="navbarNav">
+            {% if user %}
+            <ul class="navbar-nav">
+                {% block nav_bar_left_items %}
+                <li class="nav-item">
+                    <a class="nav-link btn btn-light" href="{{base_url}}home">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link btn btn-light" href="{{base_url}}token">Token</a>
+                </li>
+                {% if 'admin:users' in parsed_scopes and 'admin:servers' in parsed_scopes %}
+            <li class="nav-item">
+              <a class="nav-link btn btn-light" href="{{base_url}}admin">Admin</a>
+            </li>
+            {% endif %}
+                <li class="nav-item">
+                  <a class="nav-link btn btn-light" href="{{base_url}}dashboards">Dashboards</a>
+              </li>
+                {% endblock %}
+            </ul>
+            {% endif %}
+        </div>
+
+        <!-- Logo -->
+        <div class="navbar-header mx-auto">
+            {% block logo %}
+            <span id="jupyterhub-logo" style="margin-right: auto; margin-left: 10px;">
+                <a href="{{logo_url or base_url}}"><img src="{{base_url}}logo" alt="JupyterHub" class="jpy-logo" title="Home" style="width: 100px; height: auto;"></a>
+            </span>
+            {% endblock %}
+        </div>
+        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+          {% if user %}
+          <ul class="navbar-nav d-flex align-items-center">
+              {% block nav_bar_right_items %}
+              <li class="nav-item d-flex align-items-center">
+                  {% block login_widget %}
+                  <div id="login_widget" class="d-flex align-items-center">
+                      {% if user %}
+                      <div class="d-flex align-items-center justify-content-end">
+                          <span class="me-2">{{user.name}}</span>
+                          <a id="logout" role="button" class="btn btn-light" href="{{logout_url}}"> <i class="fas fa-sign-out-alt"></i> Logout</a>
+                      </div>
+                      {% else %}
+                      <a id="login" role="button" class="btn-sm btn navbar-btn btn-light" href="{{login_url}}">Login</a>
+                      {% endif %}
+                  </div>
+                  {% endblock %}
+              </li>
+              {% endblock %}
+          </ul>
+          {% endif %}
+      </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block announcement %}
+{% if announcement %}
+<div class="container text-center announcement alert alert-warning center-content">
+  {{ announcement | safe }}
+</div>
+{% endif %}
+{% endblock %}
+
+<div class="container-fluid main-content">
+  {% block main %}
+  {% endblock %}
+</div>
+
+{% block footer %}
+<footer class="footer-container">
+  <div class="card text-center">
+    <div class="card-footer text-body-secondary">
+      JupyterHub {{ server_version }}
+    </div>
+  </div>
+</footer>
+{% endblock %}
+
+{% call modal('Error', btn_label='OK') %}
+  <div class="ajax-error">
+    The error
+  </div>
+{% endcall %}
+
+{% block script %}
+{% endblock %}
+
+</body>
+</html>

@@ -1,9 +1,8 @@
 """Main module."""
-import pwd
-import os
-import time
+import os, pwd, asyncio, time
 import re
 from datetime import datetime
+from async_generator import yield_, asynccontextmanager, async_generator
 from typing import List
 import json
 from datetime import datetime, timedelta
@@ -13,7 +12,6 @@ from slugify import slugify
 # pcluster_spawner_template_paths = os.path.join(os.path.dirname(__file__), 'templates')
 from typing import Any, List
 import requests
-import asyncio
 from async_generator import async_generator, yield_
 import os
 import boto3
@@ -598,47 +596,65 @@ echo "jupyterhub-singleuser ended gracefully"
 
         return submission_data
 
+    #-------------------------------------------[ Jupyterhub logs in UI ]---------------------------------------------#
+
     @async_generator
     async def progress(self):
         state = self.get_state()
         dt = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
-        await yield_(
-            {
-                "message": f"""
-                [{dt}]: Job {state['job_id']} submitted. Please watch the progress bar for more information.
-                You can also run tail -f ~/logs/{self.job_prefix}_{state['job_id']}.log from a terminal.
-                """,
-            }
-        )
         homedir = pwd.getpwnam(self.user.name).pw_dir
+        instance_type = state['job_status'].split('CONFIGURING ', 1)[-1].strip()
         try:
+            # Attempt to create a new directory at the specified path, if it does not exist
+            # Also, changes the owner and group of the directory to the current user
             os.system(
                 f'runuser {self.user.name} -c "mkdir -p {homedir}/logs; chown {self.user.name}:{self.user.name} {homedir}/logs"'
             )
         except Exception as e:
             pass
+    
+        # This will run the 'tail -f' command in a subprocess and 
+        # capture its output line by line
+        command = "tail -f /var/log/slurmctld.log"
+        process = await asyncio.create_subprocess_shell(
+            command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+    
+        # Regex pattern for ISO 8601 timestamps
+        pattern = re.compile(r"\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\]")
+    
         while True:
-            time.sleep(10)
-            if self.state_ispending():
-                await yield_(
-                    {
-                        "message": f"[{dt}]: Job {state['job_id']} pending in queue... current status: {state['job_status']}",
-                    }
-                )
-            elif self.state_isrunning():
-                await yield_(
-                    {
-                        "message": f"[{dt}]: Job {state['job_id']} cluster job running... waiting to connect",
-                    }
-                )
-                return
+            line = await process.stdout.readline() # This reads one line of output from the 'tail -f' command
+            line = line.decode('utf-8').strip()    # Decode bytes to string and remove trailing newline
+    
+           # Only process lines containing the JobId or the instance type
+            if f'JobId={state["job_id"]}' in line or instance_type in line:
+                timestamps = pattern.findall(line)
+                for timestamp in timestamps:
+                    timestamp = timestamp[1:-1]
+                    dt_object = datetime.fromisoformat(timestamp)
+                    # The year-month-day order, such as the ISO 8601 "YYYY-MM-DD"
+                    formatted_dt = dt_object.strftime("%Y-%m-%d %H:%M:%S")
+                    line = line.replace(timestamp, formatted_dt)
+    
+                time.sleep(1)
+                if self.state_ispending():
+                    message = f"\n{line}" 
+                    await yield_({"message": message}) 
+                elif self.state_isrunning():
+                    message = f"[{dt}]: Job {state['job_id']} cluster job running... waiting to connect"
+                    await yield_({"message": message})
+                    return
+                else:
+                    message = f"\n{line}" 
+                    await yield_({"message": message})
             else:
-                await yield_(
-                    {
-                        "message": f"[{dt}]: Job {state['job_id']} status: {state['job_status']}",
-                    }
-                )
-            await gen.sleep(1)
+                continue  # Skip irrelevant lines
+    
+            await gen.sleep(10)
+    
+
+    #-------------------------------------------X Jupyterhub logs in UI X---------------------------------------------#
 # Get private ip
 def get_ec2_address(address_type="local-ipv4") -> str:
     response = requests.get(f"http://169.254.169.254/latest/meta-data/{address_type}")

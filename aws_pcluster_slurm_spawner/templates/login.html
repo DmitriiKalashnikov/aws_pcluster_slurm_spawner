@@ -1,0 +1,83 @@
+{% extends "page.html" %}
+{% if announcement_login %}
+  {% set announcement = announcement_login %}
+{% endif %}
+
+{% block login_widget %}
+{% endblock %}
+
+{% block main %}
+
+{% block login %}
+<style>
+  .card{
+    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.3) 100%);
+  }
+  .btn-shadow {
+    box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+  }
+</style>
+<section class="vh-100" style="background-color: #EEEEEE; border-radius: 1rem;">
+  <div class="container py-5 h-100">
+    <div class="row d-flex justify-content-center align-items-center h-100">
+      <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <div class="card shadow-2-strong" style="border-radius: 1rem;">
+          <div class="card-body p-5 text-center">
+
+            <h3 class="mb-5">Sign in</h3>
+
+            <form action="{{authenticator_login_url}}" method="post" role="form">
+              <div class="form-outline mb-4">
+                <input type="text" id="username_input" class="form-control form-control-lg" name="username" autocapitalize="off" autocorrect="off" val="{{username}}" tabindex="1" autofocus="autofocus" />
+                <label class="form-label" for="username_input">Login</label>
+              </div>
+
+              <div class="form-outline mb-4">
+                <input type="password" id="password_input" class="form-control form-control-lg" name="password" tabindex="2" />
+                <label class="form-label" for="password_input">Password</label>
+              </div>
+
+              <!-- Checkbox -->
+              <div class="form-check d-flex justify-content-start mb-4">
+                <input class="form-check-input" type="checkbox" value="" id="form1Example3" name="remember_me" />
+                <label class="form-check-label" for="form1Example3"> Remember password </label>
+              </div>
+
+              <button class="btn btn-primary btn-lg btn-block btn-shadow" type="submit">Login</button>
+              {% if login_term_url %}
+              <div id="login_terms" class="login_terms">
+                <input type="checkbox" id="login_terms_checkbox" name="login_terms_checkbox" required />
+                By logging into the platform you accept the <a href="{{ login_term_url }}">terms and conditions</a>.
+              </div>
+              {% endif %}
+            </form>
+
+            <hr class="my-4">
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock login %}
+
+{% endblock %}
+
+{% block script %}
+{{ super() }}
+<script>
+if (window.location.protocol === "http:") {
+  // unhide http warning
+  var warning = document.getElementById('insecure-login-warning');
+  warning.className = warning.className.replace(/\bhidden\b/, '');
+}
+// setup onSubmit feedback
+$('form').submit((e) => {
+  var form = $(e.target);
+  form.find('.feedback-container>input').attr('disabled', true);
+  form.find('.feedback-container>*').toggleClass('hidden');
+  form.find('.feedback-widget>*').toggleClass('fa-pulse');
+});
+</script>
+{% endblock %}

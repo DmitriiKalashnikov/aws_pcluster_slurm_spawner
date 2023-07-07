@@ -1,0 +1,40 @@
+{% extends "page.html" %}
+{% block main %}
+<div id="react-admin-hook" style="flex: 1 0 auto;">
+  <script id="jupyterhub-admin-config">
+    window.api_page_limit = parseInt("{{ api_page_limit|safe }}")
+    window.base_url = "{{ base_url|safe }}"
+  </script>
+  <script src="static/js/admin-react.js"></script>
+</div>
+{% endblock %}
+
+
+{% block footer %}
+<div class="card text-center">
+<div class="card-footer text-body-secondary">
+  <!-- <div class="navbar-text"> -->
+    JupyterHub {{ server_version }}
+  <!-- </div> -->
+</div>
+</div>
+{% endblock %}
+
+{% block script %}
+{{ super() }}
+<script type="text/javascript">
+  // We use `window.onload` to wait for all content (including images, scripts) to load
+  window.onload = function() {
+      // Now we can safely manipulate the page's elements.
+      var elements = document.querySelectorAll('a[href="/dashboards"]');
+
+      elements.forEach(function(element) {
+          var parentClass = element.parentNode.className;
+
+          if(element.innerHTML === "Dashboards" && parentClass !== "nav-item") {
+              element.parentNode.remove();
+          }
+      });
+  };
+</script>
+{% endblock %}

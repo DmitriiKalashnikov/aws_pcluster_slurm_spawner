@@ -1,58 +1,63 @@
-{% extends "page_custom.html" %}
+{% extends "page.html" %}
+
 {% if announcement_spawn %}
-{% set announcement = announcement_spawn %}
+  {% set announcement = announcement_spawn %}
 {% endif %}
 
 {% block main %}
+<style>
+    .centered-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        min-height: calc(100vh - 80px);
+    }
+    
+    .form-container {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 2rem;
+    }
+</style>
 
-<div class="container">
+<div class="container centered-content">
     {% block heading %}
-    <div class="row text-center">
-        <h1>Server Options</h1>
+    <div class="row">
+        <h1 class="text-center">Server Options</h1>
     </div>
     {% endblock %}
-    <div class="row col-sm-offset-2 col-sm-8">
+  
+    <div class="row form-container">
         {% if for_user and user.name != for_user.name -%}
-        <p>Spawning server for {{ for_user.name }}</p>
+        <p class="text-center">Spawning server for {{ for_user.name }}</p>
         {% endif -%}
         {% if error_message -%}
-        <p class="spawn-error-msg text-danger">
+        <p class="text-center spawn-error-msg text-danger">
             Error: {{error_message}}
         </p>
         {% endif %}
-
-        <script>
-            $(document).ready(function () {
-                var table = $('#slurm_spawner_table').DataTable({});
-                var sinfo_name = $('#sinfo_name');
-
-                $('#slurm_spawner_table tbody').on('click', 'tr', function () {
-                    var id = table.row(this).id();
-                    if ($(this).hasClass('selected')) {
-                        $(this).removeClass('selected');
-                    } else {
-                        table.$('tr.selected').removeClass('selected');
-                        $(this).addClass('selected');
-                        let data = table.row('.selected').data()
-                        sinfo_name.val(JSON.stringify(data))
-                        console.log(data)
-                    }
-                });
-            });
-
-        </script>
-        <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
+        
+        <form enctype="multipart/form-data" class="col-sm-8" id="spawn_form" action="{{url}}" method="post" role="form" onsubmit="return validateForm()">
             {{spawner_options_form | safe}}
-            <input type="hidden" id="sinfo_name" name="sinfo_name" value="sinfo_name">
             <br>
-            <div class="feedback-container">
-                <input type="submit" value="Start" class="btn btn-jupyter form-control">
-                <div class="feedback-widget hidden">
-                    <i class="fa fa-spinner"></i>
+      <div class="feedback-container">
+        <div class="container">
+            <div class="row mt-4">
+                <div class="col text-center">
+        <input type="submit" value="Start" class="btn btn-warning">
                 </div>
             </div>
+        </div>
+        <div class="feedback-widget hidden">
+          <i class="fa fa-spinner"></i>
+        </div>
+      </div>
         </form>
-    </div>
+
+     
+    </div> 
 </div>
 
 {% endblock %}
@@ -60,20 +65,24 @@
 {% block script %}
 {{ super() }}
 <script>
-    // setup onSubmit feedback
     $('form').submit((e) => {
-        var form = $(e.target);
-        form.find('.feedback-container>input').attr('disabled', true);
-        form.find('.feedback-container>*').toggleClass('hidden');
-        form.find('.feedback-widget>*').toggleClass('fa-pulse');
+      var form = $(e.target);
+      
+      // Check if project is selected and CPU or GPU profile is chosen
+      var cpuProject = form.find('select[name="profile-option-cpu-project"]');
+      var gpuProject = form.find('select[name="profile-option-gpu-project"]');
+      var cpuProfile = form.find('input[name="profile"]:radio[value="cpu"]');
+      var gpuProfile = form.find('input[name="profile"]:radio[value="gpu"]');
+      
+      if ((cpuProfile.is(':checked') && cpuProject.val() === '----') ||
+          (gpuProfile.is(':checked') && gpuProject.val() === '----')) {
+        e.preventDefault();  // prevent form submission
+        alert('Please select a project.');
+        return;
+      }
+      form.find('.feedback-container>input').attr('disabled', true);
+      form.find('.feedback-container>*').toggleClass('hidden');
+      form.find('.feedback-widget>*').toggleClass('fa-pulse');
     });
-
-    // $(document).ready(function () {
-    //     $('#slurm_spawner_table').DataTable();
-    // });
-
-    // let table = new DataTable('#slurm_spawner_table', {
-    // options
-    // });
 </script>
 {% endblock %}
