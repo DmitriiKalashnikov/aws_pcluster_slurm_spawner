@@ -107,22 +107,23 @@
       }
     </script>
     <script type="text/javascript">
-      // We need to wait for the whole page to load, including all HTML and scripts,
-      // before we can safely manipulate the page's elements.
       window.addEventListener('DOMContentLoaded', (event) => {
-        // We use `document.querySelectorAll` to get a list of all the `<a>` elements on the page
-        // that have `href="/hub/dashboards"` attribute.
+        // Remove the specific label element
+        var labelElement = document.querySelector('label[for="custom_env"]');
+        if (labelElement) {
+          labelElement.parentNode.removeChild(labelElement);
+        }
+        
+          // Remove the specific label element
+    var labelElement = document.querySelector('label[for="custom_r_path"]');
+    if (labelElement) {
+      labelElement.parentNode.removeChild(labelElement);
+    }
+        // Code to remove the "Dashboards" element goes here
         var elements = document.querySelectorAll('a[href="/hub/dashboards"]');
-
-        // We go through the list of elements we got.
         elements.forEach(function(element) {
-          // Check the class of the parent element <li>
           var parentClass = element.parentNode.className;
-
-          // If the inner text of the `<a>` element is "Dashboards", and its parent `<li>`
-          // doesn't have the class "nav-item", we remove the `<li>` element that contains this `<a>` element.
-          // We use `element.parentNode` to access the parent `<li>` element.
-          if(element.innerHTML === "Dashboards" && parentClass !== "nav-item") {
+          if (element.innerHTML === "Dashboards" && parentClass !== "nav-item") {
             element.parentNode.remove();
           }
         });
