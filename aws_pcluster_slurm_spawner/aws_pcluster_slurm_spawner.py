@@ -367,22 +367,26 @@ echo "jupyterhub-singleuser ended gracefully"
         max_cpu_length = max(len(cpu) for cpu in cpus)
         max_mem_length = max(len(mem) for mem in mems)
         instance_prices = self.get_instance_prices(list(set(instance_types)))
-        #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
+    
         # Retrieve all projects listed from the file if it exists
         file_path = '/home/ubuntu/projects_list/projects_list.txt'
         if os.path.exists(file_path):
             projects = self.read_projects_from_file(file_path)
         else:
             projects = ["No file"]
-        #-------------------------------------------X Project list drop-down menu X---------------------------------------------
+    
+        project_choices = {
+            "----": {"display_name": "---- Please select a project ----"},
+            **{project: {"display_name": project} for project in projects}
+        }
+    
         profiles = [
             {
                 "display_name": f"CPU",
                 "slug": "cpu",
                 "ami_name": "Deep Learning",
                 "profile_options": {
-                    # Display all projects list from the file in the drop-down menu
-                    "project": {"display_name": "Project", "choices": {}},
+                    "project": {"display_name": "Project", "choices": project_choices},
                     "instance_types": {"display_name": "Instance Types", "choices": {}},
                 },
             },
@@ -391,12 +395,11 @@ echo "jupyterhub-singleuser ended gracefully"
                 "slug": "gpu",
                 "ami_name": "Deep Learning",
                 "profile_options": {
-                    # Display all projects list from the file in the drop-down menu
-                    "project": {"display_name": "Project", "choices": {}},
                     "instance_types": {"display_name": "Instance Types", "choices": {}},
                 },
             },
         ]
+    
         for group_record in self.sinfo.dataframe.to_dict("records"):
             sinfo_name = group_record["sinfo_name"]
             instance_type = group_record["ec2_instance_type"]
@@ -406,12 +409,9 @@ echo "jupyterhub-singleuser ended gracefully"
             is_gpu = len(group_record["gpus"]) > 0
             profile_index = 1 if is_gpu else 0
             profile_choices = profiles[profile_index]["profile_options"]["instance_types"]["choices"]
-            # Pad the instance type, CPU, memory, and price to their maximum length
-            # Replace spaces with non-breaking spaces so they don't get collapsed in HTML
             padded_instance_type = instance_type.ljust(max_instance_length).replace(" ", "&nbsp;")
             padded_cpu = (str(cpu) + "CPU,").ljust(max_cpu_length).replace(" ", "&nbsp;")
             padded_mem = (str(mem) + "GB,").ljust(max_mem_length).replace(" ", "&nbsp;")
-            # Construct the display string with the padded parts
             profile_choices[sinfo_name] = dict(
                 display_name=f"{padded_instance_type} - {padded_cpu} {padded_mem}",
                 pclusterslurmspawner_override=group_record,
@@ -420,17 +420,7 @@ echo "jupyterhub-singleuser ended gracefully"
                 profile_choices[sinfo_name]['display_name'] += f"  ${instance_price}/hr"
             else:
                 profile_choices[sinfo_name]['display_name'] += ",  N/A"
-        if not profiles[1]["profile_options"]["instance_types"]["choices"]:
-            profiles.pop()
-        #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
-        for profile in profiles:
-            if "profile_options" in profile and "project" in profile["profile_options"]:
-                profile["profile_options"]["project"]["choices"] = {
-                    "----": {"display_name": "---- Please select a project ----"},  # Modified line
-                    **{project: {"display_name": project} for project in projects}
-                }
-
-        #-------------------------------------------x Project list drop-down menu x---------------------------------------------
+    
         return profiles
 
     #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
@@ -541,7 +531,19 @@ echo "jupyterhub-singleuser ended gracefully"
 
     def options_from_form(self, formdata):
         #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
-        project_name = formdata.get("projectName", [""])[0]
+        # Retrieve the selected profile
+        selected_profile = formdata.get("profile", [""])[0]
+        project_name = ""
+    
+        if selected_profile == "gpu":
+            # Retrieve the project choice from the CPU profile
+            cpu_profile = next((profile for profile in self.profiles_list if profile["slug"] == "cpu"), None)
+            if cpu_profile:
+                cpu_project_choices = cpu_profile["profile_options"]["project"]["choices"]
+                project_choice = formdata.get("profile-option-cpu-project", [""])[0]
+                project_name = cpu_project_choices.get(project_choice, {}).get("display_name", "")
+    
+        # Save the project name
         self.save_project_name(project_name)
         #-------------------------------------------X Project list drop-down menu X---------------------------------------------
         """
