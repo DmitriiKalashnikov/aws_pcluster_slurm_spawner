@@ -68,14 +68,12 @@
     $('form').submit((e) => {
       var form = $(e.target);
       
-      // Check if project is selected and CPU or GPU profile is chosen
+       // Check if project is selected and CPU or GPU profile is chosen
       var cpuProject = form.find('select[name="profile-option-cpu-project"]');
-      var gpuProject = form.find('select[name="profile-option-gpu-project"]');
       var cpuProfile = form.find('input[name="profile"]:radio[value="cpu"]');
       var gpuProfile = form.find('input[name="profile"]:radio[value="gpu"]');
-      
       if ((cpuProfile.is(':checked') && cpuProject.val() === '----') ||
-          (gpuProfile.is(':checked') && gpuProject.val() === '----')) {
+          (gpuProfile.is(':checked') && cpuProject.val() === '----')) {
         e.preventDefault();  // prevent form submission
         alert('Please select a project.');
         return;
