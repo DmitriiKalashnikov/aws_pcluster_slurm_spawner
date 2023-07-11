@@ -108,6 +108,15 @@
     </script>
     <script type="text/javascript">
       window.addEventListener('DOMContentLoaded', (event) => {
+
+                 // Remove <textarea> element
+       var textareaElement = document.getElementById("custom_env");
+       textareaElement.parentNode.removeChild(textareaElement);
+       
+       // Remove <input> element
+       var inputElement = document.getElementById("custom_r");
+       inputElement.parentNode.removeChild(inputElement);
+       
         // Remove the specific label element "Custom Env" field
         var labelElement = document.querySelector('label[for="custom_env"]');
         if (labelElement) {
