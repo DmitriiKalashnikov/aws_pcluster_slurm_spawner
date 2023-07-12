@@ -515,16 +515,6 @@ echo "jupyterhub-singleuser ended gracefully"
         <label for="options">Options (additional options such as -N 4 for multiple nodes)</label>
         <input type="text" class="form-control" value="{{req_options}}" placeholder="{req_options}" id="options" name="req_options"/>
     </div>
-    <div class="form-group">
-        <label for="custom_env">Custom Env (spack load my-env). You should only need this option for custom R environments!</label>
-        <textarea id="custom_env" name="req_custom_env" rows="4" cols="50">
-        {{req_custom_env}}
-        </textarea>
-    </div>
-    <div class="form-group">
-        <label for="custom_r_path">Custom R Path (Run source activate my-r-env; which R)</label>
-        <input type="text" class="form-control" value="{{req_custom_r}}" placeholder="" id="custom_r" name="req_custom_r"/>
-    </div>
     """
         rtemplate = Environment(loader=BaseLoader).from_string(form_options)
         return rtemplate.render(**defaults)
