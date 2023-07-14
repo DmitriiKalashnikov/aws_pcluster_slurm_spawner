@@ -6,20 +6,27 @@
 
 {% block main %}
 <style>
-    .centered-content {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        min-height: calc(100vh - 80px);
-    }
-    
-    .form-container {
-        display: flex;
-        justify-content: center;
-        width: 100%;
-        margin-bottom: 2rem;
-    }
+  .centered-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      min-height: calc(100vh - 80px);
+  }
+  
+  .form-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 2rem;
+  }
+  
+  .start-button {
+      margin-top: 1rem;
+  }
+  
 </style>
 
 <div class="container centered-content">
@@ -46,7 +53,7 @@
         <div class="container">
             <div class="row mt-4">
                 <div class="col text-center">
-        <input type="submit" value="Start" class="btn btn-warning">
+        <input type="submit" value="Start" class="btn btn-warning start-button">
                 </div>
             </div>
         </div>

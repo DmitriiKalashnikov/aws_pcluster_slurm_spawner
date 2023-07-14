@@ -369,7 +369,7 @@ echo "jupyterhub-singleuser ended gracefully"
         instance_prices = self.get_instance_prices(list(set(instance_types)))
     
         # Retrieve all projects listed from the file if it exists
-        file_path = '/home/ubuntu/projects_list/projects_list.txt'
+        file_path = '/shared/projects_list.txt'
         if os.path.exists(file_path):
             projects = self.read_projects_from_file(file_path)
         else:
@@ -500,21 +500,26 @@ echo "jupyterhub-singleuser ended gracefully"
                 "profile": profile_form,
             }
         form_options = """
-    <div class="form-group">
-        <label for="slurm_spawner_table">SLURM Options</label>
-        {{slurm_spawner_table}}
+    <div class="row">
+    <div class="col">
+        <div class="form-group">
+            {{ slurm_spawner_table }}
+        </div>
+        {{ profile }}
+        <div class="d-flex align-items-center">
+            <input type="checkbox" id="exclusive" name="exclusive" value="exclusive" {% if exclusive %}checked{% endif %}>
+            <label for="exclusive" class="ml-2">Exclusive (Reserve the entire node)</label>
+        </div>
+        <div class="form-group">
+            <label for="runtime">Runtime (--time)</label>
+            <input type="text" class="form-control" value="{{ req_runtime }}" placeholder="{{ req_runtime }}" id="runtime" name="req_runtime"/>
+        </div>
+        <div class="form-group">
+            <label for="options">Options (additional options such as -N 4 for multiple nodes)</label>
+            <input type="text" class="form-control" value="{{ req_options }}" placeholder="{{ req_options }}" id="options" name="req_options"/>
+        </div>
     </div>
-    {{profile}}
-    <input type="checkbox" id="exclusive" name="exclusive" value="exclusive" {% if exclusive %}checked{%endif %}>
-    <label for="exclusive"> Exclusive (Reserve the entire node)</label><br>
-    <div class="form-group">
-        <label for="runtime">Runtime (--time)</label>
-        <input type="text" class="form-control" value="{{req_runtime}}" placeholder="{{req_runtime}}" id="runtime" name="req_runtime"/>
-    </div>
-    <div class="form-group">
-        <label for="options">Options (additional options such as -N 4 for multiple nodes)</label>
-        <input type="text" class="form-control" value="{{req_options}}" placeholder="{req_options}" id="options" name="req_options"/>
-    </div>
+</div>
     """
         rtemplate = Environment(loader=BaseLoader).from_string(form_options)
         return rtemplate.render(**defaults)
