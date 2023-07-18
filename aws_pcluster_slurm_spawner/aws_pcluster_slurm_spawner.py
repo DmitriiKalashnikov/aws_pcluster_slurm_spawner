@@ -28,13 +28,16 @@ class PClusterSlurmSpawner(batchspawner.SlurmSpawner):
         # Get user options from form data
         user_options = self.user_options
         selected_profile = user_options.get('profile')
-
-        if selected_profile and 'profile-option-' + selected_profile + '-project' in user_options:
-            # Extract selected project
-            selected_project = user_options['profile-option-' + selected_profile + '-project']
-
-            # Save project name
-            self.save_project_name(selected_project)
+    
+        if selected_profile:
+            project_key = 'profile-option-{}-project'.format(selected_profile)
+            if project_key in user_options:
+                # Extract selected project
+                selected_project = user_options[project_key]
+    
+                # Save project name
+                self.save_project_name(selected_project)
+    
         # Call the original start method
         return await super().start()
     #-------------------------------------------X Project list drop-down menu X---------------------------------------------
@@ -106,39 +109,185 @@ echo "jupyterhub-singleuser ended gracefully"
     #pclusterslurmspawner-profiles-list .profile .option select.price {
         font-family: monospace;
         font-size: 16px;
+        
+
     }
 </style>
 
 <div class='form-group' id='pclusterslurmspawner-profiles-list'>
-    {% for profile in profile_list %}
-    <div class='profile'>
-        <div class='radio'>
-            <input type='radio' name='profile' id='profile-item-{{ profile.slug }}' value='{{ profile.slug }}' {% if profile.default %}checked{% endif %} required />
-        </div>
-        <div>
-            <h3>{{ profile.display_name }}</h3>
+
+  <div class="row">
+    <div class="col">
+        {% for profile in profile_list %}
+        {% if profile.slug == 'project' %}
+        <div class='profile'>
+            <div class="d-flex align-items-center">
+                <h3 class="d-inline">{{ profile.display_name }}</h3>
+                <label for='profile-option-{{ profile.slug }}' class="ml-2" style='margin-left: 113px;'></label>
+            </div>
             {%- if profile.description %}
             <p>{{ profile.description }}</p>
             {%- endif %}
             {%- if profile.profile_options %}
             <div class='profile-options'>
-                {%- for option_key, option_value in profile.profile_options.items() %}
+                <div class='option'>
+                    <div class='value'>
+                        <select name='profile-option-{{ profile.slug }}' class='form-control' style='margin-left: 113px;'>
+                            {% for choice_key, choice_value in profile.profile_options.project.choices.items() %}
+                            <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% for option_key, option_value in profile.profile_options.items() if option_key not in ['project', 'instance_types'] %}
                 <div class='option'>
                     <label for='profile-option-{{ profile.slug }}-{{ option_key }}'>{{ option_value.display_name }}</label>
                     <div class='value'>
                         <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
-                            {%- for choice_key, choice_value in option_value.choices.items() %}
+                            {% for choice_key, choice_value in option_value.choices.items() %}
                             <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
-                            {%- endfor %}
+                            {% endfor %}
                         </select>
                     </div>
                 </div>
-                {%- endfor %}
+                {% endfor %}
             </div>
             {%- endif %}
         </div>
+        {% endif %}
+        {% endfor %}
     </div>
-    {% endfor %}
+</div>
+
+    <div class="row">
+    <div class="col">
+        {% for profile in profile_list %}
+        {% if profile.slug == 'cpu' %}
+        <div class='profile'>
+            <div class="d-flex align-items-center">
+                <input type='radio' name='profile' id='profile-item-{{ profile.slug }}' value='{{ profile.slug }}' {% if profile.slug == 'cpu' %}checked{% endif %}>
+                <h3 class="ml-2"><label for='profile-item-{{ profile.slug }}' style='margin-left: 20px;'>{{ profile.display_name }}</label></h3>
+            </div>
+            {%- if profile.description %}
+            <p>{{ profile.description }}</p>
+            {%- endif %}
+            {%- if profile.profile_options %}
+            <div class='profile-options'>
+                <div class='option'>
+                    <label for='profile-option-{{ profile.slug }}-instance_types' style='margin-left: 20px;'>{{ profile.profile_options.instance_types.display_name }}</label>
+                    <div class='value'>
+                        <select name='profile-option-{{ profile.slug }}-instance_types' class='form-control instance-types'>
+                            {% for choice_key, choice_value in profile.profile_options.instance_types.choices.items() %}
+                            <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% for option_key, option_value in profile.profile_options.items() if option_key not in ['instance_types'] %}
+                <div class='option'>
+                    <label for='profile-option-{{ profile.slug }}-{{ option_key }}' style='margin-left: 20px;'>{{ option_value.display_name }}</label>
+                    <div class='value'>
+                        <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
+                            {% for choice_key, choice_value in option_value.choices.items() %}
+                            <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {%- endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+        <div class="col">
+            {% for profile in profile_list %}
+            {% if profile.slug == 'gpu' %}
+            <div class='profile'>
+                <div class="d-flex align-items-center">
+                    <input type='radio' name='profile' id='profile-item-{{ profile.slug }}' value='{{ profile.slug }}'>
+                    <h3 class="ml-2"><label for='profile-item-{{ profile.slug }}' style='margin-left: 20px;'>{{ profile.display_name }}</label></h3>
+                </div>
+                {%- if profile.description %}
+                <p>{{ profile.description }}</p>
+                {%- endif %}
+                {%- if profile.profile_options %}
+                <div class='profile-options'>
+                    <div class='option'>
+                        <label for='profile-option-{{ profile.slug }}-instance_types' style="margin-left: 20px;">{{ profile.profile_options.instance_types.display_name }}</label>
+                        <div class='value'>
+                            <select name='profile-option-{{ profile.slug }}-instance_types' class='form-control instance-types'>
+                                {% for choice_key, choice_value in profile.profile_options.instance_types.choices.items() %}
+                                <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% for option_key, option_value in profile.profile_options.items() if option_key not in ['instance_types'] %}
+                    <div class='option'>
+                        <label for='profile-option-{{ profile.slug }}-{{ option_key }}' style="margin-left: 20px;">{{ option_value.display_name }}</label>
+                        <div class='value'>
+                            <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
+                                {% for choice_key, choice_value in option_value.choices.items() %}
+                                <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {%- endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            {% for profile in profile_list %}
+            {% if profile.slug != 'project' and profile.slug != 'cpu' and profile.slug != 'gpu' %}
+            <div class='profile'>
+                <div>
+                    <h3>{{ profile.display_name }}</h3>
+                    {%- if profile.description %}
+                    <p>{{ profile.description }}</p>
+                    {%- endif %}
+                    {%- if profile.profile_options %}
+                    <div class='profile-options'>
+                        <div class='option'>
+                            <label for='profile-option-{{ profile.slug }}-instance_types'>{{ profile.profile_options.instance_types.display_name }}</label>
+                            <div class='value'>
+                                <select name='profile-option-{{ profile.slug }}-instance_types' class='form-control instance-types'>
+                                    {% for choice_key, choice_value in profile.profile_options.instance_types.choices.items() %}
+                                    <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% for option_key, option_value in profile.profile_options.items() if option_key not in ['instance_types'] %}
+                        <div class='option'>
+                            <label for='profile-option-{{ profile.slug }}-{{ option_key }}'>{{ option_value.display_name }}</label>
+                            <div class='value'>
+                                <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
+                                    {% for choice_key, choice_value in option_value.choices.items() %}
+                                    <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {%- endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
 </div>
 
     """,
@@ -369,7 +518,7 @@ echo "jupyterhub-singleuser ended gracefully"
         instance_prices = self.get_instance_prices(list(set(instance_types)))
     
         # Retrieve all projects listed from the file if it exists
-        file_path = '/shared/projects_list.txt'
+        file_path = '/shared/project_list.txt'
         if os.path.exists(file_path):
             projects = self.read_projects_from_file(file_path)
         else:
@@ -382,11 +531,17 @@ echo "jupyterhub-singleuser ended gracefully"
     
         profiles = [
             {
+                "display_name": f"Project",
+                "slug": "project",
+                "profile_options": {
+                    "project": {"display_name": "Project", "choices": project_choices},
+                },
+            },
+            {
                 "display_name": f"CPU",
                 "slug": "cpu",
                 "ami_name": "Deep Learning",
                 "profile_options": {
-                    "project": {"display_name": "Project", "choices": project_choices},
                     "instance_types": {"display_name": "Instance Types", "choices": {}},
                 },
             },
@@ -407,7 +562,7 @@ echo "jupyterhub-singleuser ended gracefully"
             mem = group_record["mem"]
             cpu = group_record["vcpu"]
             is_gpu = len(group_record["gpus"]) > 0
-            profile_index = 1 if is_gpu else 0
+            profile_index = 2 if is_gpu else 1 if 'mem' in group_record and 'vcpu' in group_record else 0
             profile_choices = profiles[profile_index]["profile_options"]["instance_types"]["choices"]
             padded_instance_type = instance_type.ljust(max_instance_length).replace(" ", "&nbsp;")
             padded_cpu = (str(cpu) + "CPU,").ljust(max_cpu_length).replace(" ", "&nbsp;")
@@ -422,6 +577,7 @@ echo "jupyterhub-singleuser ended gracefully"
                 profile_choices[sinfo_name]['display_name'] += ",  N/A"
     
         return profiles
+
 
     #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
     @staticmethod
@@ -500,7 +656,7 @@ echo "jupyterhub-singleuser ended gracefully"
                 "profile": profile_form,
             }
         form_options = """
-    <div class="row">
+     <div class="row">
     <div class="col">
         <div class="form-group">
             {{ slurm_spawner_table }}
@@ -520,25 +676,21 @@ echo "jupyterhub-singleuser ended gracefully"
         </div>
     </div>
 </div>
+
     """
         rtemplate = Environment(loader=BaseLoader).from_string(form_options)
         return rtemplate.render(**defaults)
 
     def options_from_form(self, formdata):
         #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
-        # Retrieve the selected profile
         selected_profile = formdata.get("profile", [""])[0]
         project_name = ""
+        
+        if selected_profile in ["gpu", "cpu"]:
+            project_choice = formdata.get("profile-option-project", [""])[0]
+            project_choices = self.profiles_list[0]["profile_options"]["project"]["choices"]
+            project_name = project_choices.get(project_choice, {}).get("display_name", "")
     
-        if selected_profile == "gpu":
-            # Retrieve the project choice from the CPU profile
-            cpu_profile = next((profile for profile in self.profiles_list if profile["slug"] == "cpu"), None)
-            if cpu_profile:
-                cpu_project_choices = cpu_profile["profile_options"]["project"]["choices"]
-                project_choice = formdata.get("profile-option-cpu-project", [""])[0]
-                project_name = cpu_project_choices.get(project_choice, {}).get("display_name", "")
-    
-        # Save the project name
         self.save_project_name(project_name)
         #-------------------------------------------X Project list drop-down menu X---------------------------------------------
         """

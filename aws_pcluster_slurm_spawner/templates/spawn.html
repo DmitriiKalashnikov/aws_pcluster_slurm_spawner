@@ -5,28 +5,29 @@
 {% endif %}
 
 {% block main %}
+
 <style>
-  .centered-content {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      min-height: calc(100vh - 80px);
-  }
-  
-  .form-container {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      margin-bottom: 2rem;
-  }
-  
-  .start-button {
-      margin-top: 1rem;
-  }
-  
+    .centered-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        min-height: calc(100vh - 80px);
+    }
+    
+    .form-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 2rem;
+    }
+    
+    .start-button {
+        margin-top: 1rem;
+    }
+    
 </style>
 
 <div class="container centered-content">
@@ -48,19 +49,20 @@
         
         <form enctype="multipart/form-data" class="col-sm-8" id="spawn_form" action="{{url}}" method="post" role="form" onsubmit="return validateForm()">
             {{spawner_options_form | safe}}
-            <br>
-      <div class="feedback-container">
-        <div class="container">
-            <div class="row mt-4">
-                <div class="col text-center">
-        <input type="submit" value="Start" class="btn btn-warning start-button">
+            
+            
+            <!-- <div class="feedback-container">
+                <div class="container">
+                    <div class="row mt-4"> -->
+                        <div class="col text-center">
+                <input type="submit" value="Start" class="btn btn-warning start-button">
+                        </div>
+                    <!-- </div>
                 </div>
-            </div>
-        </div>
-        <div class="feedback-widget hidden">
-          <i class="fa fa-spinner"></i>
-        </div>
-      </div>
+                <div class="feedback-widget hidden">
+                  <i class="fa fa-spinner"></i>
+                </div>
+              </div> -->
         </form>
 
      
@@ -72,22 +74,26 @@
 {% block script %}
 {{ super() }}
 <script>
-    $('form').submit((e) => {
-      var form = $(e.target);
-      
-       // Check if project is selected and CPU or GPU profile is chosen
-      var cpuProject = form.find('select[name="profile-option-cpu-project"]');
-      var cpuProfile = form.find('input[name="profile"]:radio[value="cpu"]');
-      var gpuProfile = form.find('input[name="profile"]:radio[value="gpu"]');
-      if ((cpuProfile.is(':checked') && cpuProject.val() === '----') ||
-          (gpuProfile.is(':checked') && cpuProject.val() === '----')) {
-        e.preventDefault();  // prevent form submission
-        alert('Please select a project.');
-        return;
-      }
-      form.find('.feedback-container>input').attr('disabled', true);
-      form.find('.feedback-container>*').toggleClass('hidden');
-      form.find('.feedback-widget>*').toggleClass('fa-pulse');
-    });
+
+$('form').submit((e) => {
+  var form = $(e.target);
+  
+  // Check if project is selected and CPU or GPU profile is chosen
+  var cpuProfile = form.find('input[name="profile"]:radio[value="cpu"]');
+  var gpuProfile = form.find('input[name="profile"]:radio[value="gpu"]');
+  var project = form.find('select[name="profile-option-project"]');
+
+  if ((cpuProfile.is(':checked') || gpuProfile.is(':checked')) && project.val() === '----') {
+    e.preventDefault();  // prevent form submission
+    alert('Please select a project.');
+    return;
+  }
+
+  form.find('.feedback-container>input').attr('disabled', true);
+  form.find('.feedback-container>*').toggleClass('hidden');
+  form.find('.feedback-widget>*').toggleClass('fa-pulse');
+});
+
+
 </script>
 {% endblock %}
