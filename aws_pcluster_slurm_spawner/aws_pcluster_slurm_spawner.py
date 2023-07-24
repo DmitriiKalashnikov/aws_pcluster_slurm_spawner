@@ -246,48 +246,6 @@ echo "jupyterhub-singleuser ended gracefully"
         </div>
     </div>
 
-    <div class="row">
-        <div class="col">
-            {% for profile in profile_list %}
-            {% if profile.slug != 'project' and profile.slug != 'cpu' and profile.slug != 'gpu' %}
-            <div class='profile'>
-                <div>
-                    <h3>{{ profile.display_name }}</h3>
-                    {%- if profile.description %}
-                    <p>{{ profile.description }}</p>
-                    {%- endif %}
-                    {%- if profile.profile_options %}
-                    <div class='profile-options'>
-                        <div class='option'>
-                            <label for='profile-option-{{ profile.slug }}-instance_types'>{{ profile.profile_options.instance_types.display_name }}</label>
-                            <div class='value'>
-                                <select name='profile-option-{{ profile.slug }}-instance_types' class='form-control instance-types'>
-                                    {% for choice_key, choice_value in profile.profile_options.instance_types.choices.items() %}
-                                    <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        {% for option_key, option_value in profile.profile_options.items() if option_key not in ['instance_types'] %}
-                        <div class='option'>
-                            <label for='profile-option-{{ profile.slug }}-{{ option_key }}'>{{ option_value.display_name }}</label>
-                            <div class='value'>
-                                <select name='profile-option-{{ profile.slug }}-{{ option_key }}' class='form-control {% if option_key == "instance_types" %}instance-types{% elif option_key == "gb" %}gb{% elif option_key == "price" %}price{% endif %}'>
-                                    {% for choice_key, choice_value in option_value.choices.items() %}
-                                    <option value='{{ choice_key }}' {% if choice_value.default %}selected{% endif %}>{{ choice_value.display_name|replace(" $", "$") }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {%- endif %}
-                </div>
-            </div>
-            {% endif %}
-            {% endfor %}
-        </div>
-    </div>
 </div>
 
     """,
