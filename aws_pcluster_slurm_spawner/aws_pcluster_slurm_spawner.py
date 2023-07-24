@@ -786,7 +786,7 @@ echo "jupyterhub-singleuser ended gracefully"
                     formatted_dt = dt_object.strftime("%Y-%m-%d %H:%M:%S")
                     line = line.replace(timestamp, formatted_dt)
     
-                time.sleep(1)
+                time.sleep(10)
                 if self.state_ispending():
                     message = f"\n{line}" 
                     await yield_({"message": message}) 
