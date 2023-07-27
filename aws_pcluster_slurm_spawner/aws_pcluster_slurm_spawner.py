@@ -21,6 +21,48 @@ from concurrent.futures import ThreadPoolExecutor
 from traitlets import Unicode
 from aws_pcluster_helpers.models.sinfo import SInfoTable, SinfoRow
 from cdsdashboards.hubextension.spawners.variablemixin import VariableMixin, MetaVariableMixin
+from jupyterhub.handlers import BaseHandler
+import traceback
+import asyncio
+from tornado.process import Subprocess
+
+#--- SharedState needed for pass job_id from the function async def progress(self)
+class SharedState:
+    def __init__(self):
+        self.job_id = None
+
+shared_state = SharedState()
+
+#--- The Class responsible for run command "scancel ${job_id}"
+class CancelButtonHandler(BaseHandler):
+    async def post(self):
+        print("Post method called in MyButtonHandler")
+        try:
+            data = json.loads(self.request.body.decode('utf-8'))
+
+            # Get the job id from the shared state
+            job_id = shared_state.job_id
+
+            # Run the scancel command using the job id
+            await self.run_command(job_id)
+            self.finish(json.dumps({"status": "OK"}))
+        except Exception as e:
+            print("An error occurred in MyButtonHandler: ", str(e))
+            traceback.print_exc()  # print detailed traceback
+
+    async def run_command(self, job_id):
+        # Use the absolute path of the scancel command
+        cmd = f"/opt/slurm/bin/scancel {job_id}"
+        process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await process.communicate()
+        
+        stdout = stdout.decode('utf-8') if stdout else ''
+        stderr = stderr.decode('utf-8') if stderr else ''
+
+        if process.returncode != 0:
+            print(f"Command '{cmd}' failed with exit code {process.returncode}, stderr: {stderr}")
+        else:
+            print(f"Command '{cmd}' succeeded, stdout: {stdout}")
 
 class PClusterSlurmSpawner(batchspawner.SlurmSpawner):
     #-------------------------------------------[ Project list drop-down menu ]---------------------------------------------
