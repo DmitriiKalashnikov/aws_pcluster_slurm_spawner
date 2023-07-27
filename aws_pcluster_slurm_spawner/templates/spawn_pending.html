@@ -1,15 +1,12 @@
 {% extends "page.html" %}
-
 {% block main %}
-
 <style>
   #progress-log {
     background-color: #FAFAFA;
-    border-radius: 10px;  /* Adjust this value to your liking */
+    border-radius: 10px;
     padding: 10px;
   }
 </style>
-
 <div class="container">
   <div class="row">
     <div class="text-center">
@@ -32,9 +29,15 @@
         <div id="progress-log"></div>
       </details>
     </div>
+    <div class="row">
+      <div class="text-center">
+        <button id="cancel-button" class="btn btn-lg btn-danger">
+          Cancel
+        </button>
+      </div>
+    </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block script %}
@@ -44,14 +47,13 @@
     $("#refresh").click(function () {
       window.location.reload();
     });
-  
     // hook up event-stream for progress
     var evtSource = new EventSource("{{ progress_url }}");
     var progressMessage = $("#progress-message");
     var progressBar = $("#progress-bar");
     var srProgress = $("#sr-progress");
     var progressLog = $("#progress-log");
-  
+
     evtSource.onmessage = function(e) {
       var evt = JSON.parse(e.data);
       console.log(evt);
@@ -75,30 +77,58 @@
         // Highlight keywords in the log message
         html_message = html_message.replace(/(JobId=)(\d+)/g, '$1<b>$2</b>');
         html_message = html_message.replace(/(error|failed|failure|InsufficientInstanceCapacity|insufficient)/gi, '<span style="color:red;">$1</span>');
+        html_message = html_message.replace(/(complete)/gi, '<span style="color:green;">$1</span>');
         progressLog.append(
           $("<div>")
             .addClass('progress-log-event')
             .html(html_message)
         );
+        // If the Spawn failed, mark the progress bar as failed
+        if (html_message.includes("Spawn failed:")) {
+          progressBar.addClass('bg-danger');
+          progressBar.css('width', '0%');
+          srProgress.text('Failed');
+          progressBar.attr('aria-valuenow', '0');
+          progressBar.find('.sr-only').html('Failed');
+        }
       }
-  
+
       if (evt.ready) {
         evtSource.close();
         // reload the current page
         // which should result in a redirect to the running server
         window.location.reload();
       }
-  
+
       if (evt.failed) {
         evtSource.close();
-        // turn progress bar red
-        progressBar.addClass('progress-bar-danger');
-        // open event log for debugging
+        progressBar.addClass('bg-danger');
+        progressBar.css('width', '0%');
+        srProgress.text('0%');
+        progressBar.attr('aria-valuenow', '0');
+        progressBar.find('.sr-only').html('0% Failed');
         $('#progress-details').prop('open', true);
       }
     };
-  
   });
-  </script>
-  
+</script>
+
+{{ super() }}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+    $('#cancel-button').click(function(){
+        $.ajax({
+            type: "POST",
+            url: "/hub/cancel-button",
+            data: JSON.stringify({action: 'OK'}),
+            success: function(data) {
+                alert("Job canceled, redirecting...");
+                window.location.href = "/hub/spawn/{{ user.name }}";
+            },
+            contentType: "application/json",
+        });
+    });
+});
+</script>
 {% endblock %}
