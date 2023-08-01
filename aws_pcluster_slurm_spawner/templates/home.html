@@ -4,6 +4,13 @@
 {% endif %}
 
 {% block main %}
+<style>
+  .compact-input {
+    max-width: 200px; 
+  }
+  </style>
+
+
 <div class="container">
   <div class="row">
     <div class="text-center">
@@ -17,6 +24,8 @@
       My Server
       </a>
     </div>
+
+    
   </div>
   {% if allow_named_servers %}
   <h2>
@@ -33,7 +42,18 @@
 
   <table class="server-table table table-striped">
     <thead>
+
+      <tr class="home-server-row add-server-row">
+        <td colspan="4">
+          <input class="form-control new-server-name compact-input" placeholder="Name your server">
+          <a role="button" class="new-server-btn" class="add-server btn btn-xs btn-primary">
+            Add New Server
+          </a>
+        </td>
+      </tr>
+      
       <tr>
+        <th>Job ID</th>
         <th>Server name</th>
         <th>URL</th>
         <th>Last activity</th>
@@ -41,19 +61,20 @@
       </tr>
     </thead>
     <tbody>
-      <tr class="home-server-row add-server-row">
-        <td colspan="4">
-          <input class="new-server-name" placeholder="Name your server">
-          <a role="button" class="new-server-btn" class="add-server btn btn-xs btn-primary">
-            Add New Server
-          </a>
-        </td>
-      </tr>
+     
       {% for spawner in named_spawners %}
       <tr class="home-server-row" data-server-name="{{ spawner.name }}">
-        {# name #}
+        {# Job ID #}
+        <td>
+          {% if spawner.job_id %}
+            {{ spawner.job_id }}
+          {% endif %}
+        </td>
+        {# Server name #}
         <td>{{ spawner.name }}</td>
-        {# url #}
+        {# Job Status #}
+    
+        {# URL #}
         <td>
           <a class="server-link {% if not spawner.ready %}hidden{% endif %}" href="{{ user.server_url(spawner.name) }}">
             {{ user.server_url(spawner.name) }}
@@ -76,12 +97,29 @@
             start
           </a>
           <a role="button" class="delete-server btn btn-xs btn-danger{% if spawner.active %} hidden{% endif %}" id="delete-{{ spawner.name }}">delete</a>
+          
         </td>
+
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  
+  <button type="button" class="btn btn-secondary" onclick="getUserJobs()">Get Jobs</button>
+    <p id="timestamp"></p>
+    <div id="output" class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr id="header"></tr>
+        </thead>
+        <tbody id="body">
+        </tbody>
+      </table>
+    </div>
+
   {% endif %}
+
+
 </div>
 {% endblock main %}
 
@@ -90,4 +128,107 @@
 <script type="text/javascript">
 require(["home"]);
 </script>
+
+<script>
+  async function getUserJobs() {
+      try {
+          // Get the current time
+          const now = new Date();
+          
+          // Format the date and time
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');  // pad with zero if needed
+
+
+          const formattedDateAndTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+          // Display the timestamp
+          document.getElementById('timestamp').innerText = `Request sent at: ${formattedDateAndTime}`;
+
+          const response = await fetch('/user-job', { method: 'GET' });
+          const data = await response.json();
+
+          const output = document.getElementById('output');
+          const header = document.getElementById('header');
+          const body = document.getElementById('body');
+
+          // Split stdout by new line
+          const lines = data.output.stdout.split('\n').filter(line => line.trim() !== '');
+
+          // Handle header
+          const headerColumns = lines[0].split(/\s+/);
+          header.innerHTML = headerColumns.map(col => `<th><span style="color:grey">${col}</span></th>`).join('');
+
+          // Handle body
+        const bodyRows = lines.slice(1).map(line => line.split(/\s+/));
+        body.innerHTML = bodyRows.map(row => {
+          console.log(`JobId for this row: '${row[1]}'`);
+          return `<tr>${row.map(col => `<td>${col}</td>`).join('')}
+          <td>
+            <input type="number" min="1" id="extendHoursJob${row[1]}" class="form-control" placeholder="Enter hours">
+          </td>
+          <td>
+            <button id="extendButton${row[1]}" onclick="extendJob('${row[1]}')" class="btn btn-secondary">Extend</button>
+
+          </td>
+          </tr>`;
+        }).join('');
+          
+      } catch (error) {
+          console.error('An error occurred:', error);
+      }
+  }
+</script>
+
+<script>
+  async function extendJob(jobId) {
+  console.log(`extendJob called with jobId: '${jobId}'`);  // Add this line for debugging
+  const hoursInput = document.getElementById(`extendHoursJob${jobId}`);
+  const extendButton = document.getElementById(`extendButton${jobId}`);
+  const hours = hoursInput ? hoursInput.value : null;
+
+  if (!jobId) {
+    alert('Job ID is missing');
+    return;
+  }
+
+  if (!hours || hours <= 0) {
+    alert('Please enter a valid number of hours.');
+    return;
+  }
+
+  // Disable the button and show processing message
+  extendButton.disabled = true;
+  extendButton.textContent = 'Extending...';
+
+  try {
+    const response = await fetch('/hub/extend-job', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ jobId: jobId, hours: hours })
+    });
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('An error occurred:', data.error);
+    } else {
+      console.log('Success:', data.output);
+      getUserJobs();  // Refresh job list
+    }
+  } catch (error) {
+    console.error('An error occurred:', error);
+  } finally {
+    // Enable the button and restore original text
+    extendButton.disabled = false;
+    extendButton.textContent = 'Extend';
+  }
+}
+</script>
+
 {% endblock %}

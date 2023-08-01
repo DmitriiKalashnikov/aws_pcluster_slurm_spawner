@@ -26,6 +26,74 @@ import traceback
 import asyncio
 from tornado.process import Subprocess
 
+class ExtendJobHandler(BaseHandler):
+    async def post(self):
+        try:
+            data = json.loads(self.request.body.decode('utf-8'))
+            job_id = data.get('jobId')
+            hours = data.get('hours')
+
+            if not job_id or not hours:
+                self.set_status(400)
+                self.finish(json.dumps({"error": "Missing jobId or hours"}))
+                return
+
+            # Run the scontrol update command using the job id and hours
+            output = await self.run_command(job_id, hours)
+
+            # Send the output back to the client
+            self.finish(json.dumps({"output": output}))
+
+        except Exception as e:
+            print("An error occurred in ExtendJobHandler: ", str(e))
+            traceback.print_exc()  # print detailed traceback
+
+    async def run_command(self, job_id, hours):
+        cmd = f"/opt/slurm/bin/scontrol update job={job_id} TimeLimit=+{hours}:00:00"
+        process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await process.communicate()
+        
+        stdout = stdout.decode('utf-8') if stdout else ''
+        stderr = stderr.decode('utf-8') if stderr else ''
+
+        if process.returncode != 0:
+            print(f"Command '{cmd}' failed with exit code {process.returncode}, stderr: {stderr}")
+            return {"error": stderr}
+        else:
+            print(f"Command '{cmd}' succeeded, stdout: {stdout}")
+            return {"stdout": stdout}
+
+class UserJobHandler(BaseHandler):
+    async def get(self):
+        try:
+            # Get the username from the user object
+            username = self.current_user.name
+
+            # Run the squeue command using the username
+            output = await self.run_command(username)
+
+            # Print the output in the UI
+            self.finish(json.dumps({"output": output}))
+        except Exception as e:
+            print("An error occurred in UserJobHandler: ", str(e))
+            traceback.print_exc()  # print detailed traceback
+
+    async def run_command(self, username):
+        # Use the absolute path of the squeue command
+        cmd = f"/opt/slurm/bin/squeue -u {username} --format='%.8i %.13P %.20j %.12T %.10M %.10l %.6D %R'"
+        process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await process.communicate()
+        
+        stdout = stdout.decode('utf-8') if stdout else ''
+        stderr = stderr.decode('utf-8') if stderr else ''
+
+        if process.returncode != 0:
+            print(f"Command '{cmd}' failed with exit code {process.returncode}, stderr: {stderr}")
+            return {"error": stderr}
+        else:
+            print(f"Command '{cmd}' succeeded, stdout: {stdout}")
+            return {"stdout": stdout}
+
 #--- SharedState needed for pass job_id from the function async def progress(self)
 class SharedState:
     def __init__(self):
